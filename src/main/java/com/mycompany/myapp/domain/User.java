@@ -13,7 +13,6 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.io.Serializable;
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -34,11 +33,6 @@ public class User extends AbstractAuditingEntity implements Serializable {
     @Size(min = 1, max = 50)
     @Indexed
     private String login;
-
-    @JsonIgnore
-    @NotNull
-    @Size(min = 60, max = 60)
-    private String password;
 
     @Size(max = 50)
     @Field("first_name")
@@ -63,19 +57,6 @@ public class User extends AbstractAuditingEntity implements Serializable {
     @Field("image_url")
     private String imageUrl;
 
-    @Size(max = 20)
-    @Field("activation_key")
-    @JsonIgnore
-    private String activationKey;
-
-    @Size(max = 20)
-    @Field("reset_key")
-    @JsonIgnore
-    private String resetKey;
-
-    @Field("reset_date")
-    private Instant resetDate = null;
-
     @JsonIgnore
     private Set<Authority> authorities = new HashSet<>();
 
@@ -94,14 +75,6 @@ public class User extends AbstractAuditingEntity implements Serializable {
     // Lowercase the login before saving it in database
     public void setLogin(String login) {
         this.login = StringUtils.lowerCase(login, Locale.ENGLISH);
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public String getFirstName() {
@@ -142,30 +115,6 @@ public class User extends AbstractAuditingEntity implements Serializable {
 
     public void setActivated(boolean activated) {
         this.activated = activated;
-    }
-
-    public String getActivationKey() {
-        return activationKey;
-    }
-
-    public void setActivationKey(String activationKey) {
-        this.activationKey = activationKey;
-    }
-
-    public String getResetKey() {
-        return resetKey;
-    }
-
-    public void setResetKey(String resetKey) {
-        this.resetKey = resetKey;
-    }
-
-    public Instant getResetDate() {
-        return resetDate;
-    }
-
-    public void setResetDate(Instant resetDate) {
-        this.resetDate = resetDate;
     }
 
     public String getLangKey() {
@@ -210,7 +159,6 @@ public class User extends AbstractAuditingEntity implements Serializable {
             ", imageUrl='" + imageUrl + '\'' +
             ", activated='" + activated + '\'' +
             ", langKey='" + langKey + '\'' +
-            ", activationKey='" + activationKey + '\'' +
             "}";
     }
 }

@@ -12,19 +12,12 @@ describe('administration', () => {
     await browser.get('/');
     navBarPage = new NavBarPage(true);
     signInPage = await navBarPage.getSignInPage();
-    await signInPage.autoSignInUsing('admin', 'admin');
+    await signInPage.loginWithOAuth('admin', 'admin');
     await browser.wait(ec.visibilityOf(navBarPage.adminMenu), 5000);
   });
 
   beforeEach(async () => {
     await navBarPage.clickOnAdminMenu();
-  });
-
-  it('should load user management', async () => {
-    await navBarPage.clickOnAdmin('user-management');
-    const expect1 = 'userManagement.home.title';
-    const value1 = await element(by.id('user-management-page-heading')).getAttribute('jhiTranslate');
-    expect(value1).to.eq(expect1);
   });
 
   it('should load metrics', async () => {

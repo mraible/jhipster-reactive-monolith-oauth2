@@ -1,15 +1,9 @@
 package com.mycompany.myapp.web.rest;
 
 import com.mycompany.myapp.config.Constants;
-import com.mycompany.myapp.domain.User;
-import com.mycompany.myapp.repository.UserRepository;
 import com.mycompany.myapp.security.AuthoritiesConstants;
-import com.mycompany.myapp.service.MailService;
 import com.mycompany.myapp.service.UserService;
 import com.mycompany.myapp.service.dto.UserDTO;
-import com.mycompany.myapp.web.rest.errors.BadRequestAlertException;
-import com.mycompany.myapp.web.rest.errors.EmailAlreadyUsedException;
-import com.mycompany.myapp.web.rest.errors.LoginAlreadyUsedException;
 
 import io.github.jhipster.web.util.HeaderUtil;
 import io.github.jhipster.web.util.PaginationUtil;
@@ -29,16 +23,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import javax.validation.Valid;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * REST controller for managing users.
  * <p>
- * This class accesses the {@link User} entity, and needs to fetch its collection of authorities.
+ * This class accesses the {@link com.mycompany.myapp.domain.User} entity, and needs to fetch its collection of authorities.
  * <p>
  * For a normal use-case, it would be better to have an eager relationship between User and Authority,
  * and send everything to the client side: there would be no View Model and DTO, a lot less code, and an outer-join
@@ -70,98 +61,9 @@ public class UserResource {
 
     private final UserService userService;
 
-    private final UserRepository userRepository;
-
-    private final MailService mailService;
-
-    public UserResource(UserService userService, UserRepository userRepository, MailService mailService) {
+    public UserResource(UserService userService) {
 
         this.userService = userService;
-        this.userRepository = userRepository;
-        this.mailService = mailService;
-    }
-
-    /**
-     * {@code POST  /users}  : Creates a new user.
-     * <p>
-     * Creates a new user if the login and email are not already used, and sends an
-     * mail with an activation link.
-     * The user needs to be activated on creation.
-     *
-     * @param userDTO the user to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new user, or with status {@code 400 (Bad Request)} if the login or email is already in use.
-     * @throws BadRequestAlertException {@code 400 (Bad Request)} if the login or email is already in use.
-     */
-    @PostMapping("/users")
-    @PreAuthorize("hasRole(\"" + AuthoritiesConstants.ADMIN + "\")")
-    public Mono<ResponseEntity<User>> createUser(@Valid @RequestBody UserDTO userDTO) {
-        log.debug("REST request to save User : {}", userDTO);
-
-        if (userDTO.getId() != null) {
-            throw new BadRequestAlertException("A new user cannot already have an ID", "userManagement", "idexists");
-            // Lowercase the user login before comparing with database
-        }
-        return userRepository.findOneByLogin(userDTO.getLogin().toLowerCase())
-            .hasElement()
-            .flatMap(loginExists -> {
-                if (loginExists) {
-                    throw new LoginAlreadyUsedException();
-                }
-                return userRepository.findOneByEmailIgnoreCase(userDTO.getEmail());
-            })
-            .hasElement()
-            .flatMap(emailExists -> {
-                if (emailExists) {
-                    throw new EmailAlreadyUsedException();
-                }
-                return userService.createUser(userDTO);
-            })
-            .doOnSuccess(mailService::sendCreationEmail)
-            .map(user -> {
-                try {
-                    return ResponseEntity.created(new URI("/api/users/" + user.getLogin()))
-                        .headers(HeaderUtil.createAlert(applicationName, "userManagement.created", user.getLogin()))
-                        .body(user);
-                } catch (URISyntaxException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-    }
-
-    /**
-     * {@code PUT /users} : Updates an existing User.
-     *
-     * @param userDTO the user to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated user.
-     * @throws EmailAlreadyUsedException {@code 400 (Bad Request)} if the email is already in use.
-     * @throws LoginAlreadyUsedException {@code 400 (Bad Request)} if the login is already in use.
-     */
-    @PutMapping("/users")
-    @PreAuthorize("hasRole(\"" + AuthoritiesConstants.ADMIN + "\")")
-    public Mono<ResponseEntity<UserDTO>> updateUser(@Valid @RequestBody UserDTO userDTO) {
-        log.debug("REST request to update User : {}", userDTO);
-        return userRepository.findOneByEmailIgnoreCase(userDTO.getEmail())
-            .filter(user -> !user.getId().equals(userDTO.getId()))
-            .hasElement()
-            .flatMap(emailExists -> {
-                if (emailExists) {
-                    throw new EmailAlreadyUsedException();
-                }
-                return userRepository.findOneByLogin(userDTO.getLogin().toLowerCase());
-            })
-            .filter(user -> !user.getId().equals(userDTO.getId()))
-            .hasElement()
-            .flatMap(loginExists -> {
-                if (loginExists) {
-                    throw new LoginAlreadyUsedException();
-                }
-                return userService.updateUser(userDTO);
-            })
-            .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
-            .map(user -> ResponseEntity.ok()
-                .headers(HeaderUtil.createAlert(applicationName, "userManagement.updated", userDTO.getLogin()))
-                .body(user)
-            );
     }
 
     /**
@@ -201,20 +103,5 @@ public class UserResource {
         return userService.getUserWithAuthoritiesByLogin(login)
             .map(UserDTO::new)
             .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
-    }
-
-    /**
-     * {@code DELETE /users/:login} : delete the "login" User.
-     *
-     * @param login the login of the user to delete.
-     * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
-     */
-    @DeleteMapping("/users/{login:" + Constants.LOGIN_REGEX + "}")
-    @PreAuthorize("hasRole(\"" + AuthoritiesConstants.ADMIN + "\")")
-    @ResponseStatus(code = HttpStatus.NO_CONTENT)
-    public Mono<ResponseEntity<Void>> deleteUser(@PathVariable String login) {
-        log.debug("REST request to delete User: {}", login);
-        return userService.deleteUser(login)
-            .map(it -> ResponseEntity.noContent().headers(HeaderUtil.createAlert( applicationName, "userManagement.deleted", login)).build());
     }
 }

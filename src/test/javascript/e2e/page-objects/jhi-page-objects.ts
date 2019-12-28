@@ -1,4 +1,4 @@
-import { element, by, ElementFinder } from 'protractor';
+import { element, by, ElementFinder, browser } from 'protractor';
 
 /* eslint @typescript-eslint/no-use-before-define: 0 */
 export class NavBarPage {
@@ -62,17 +62,6 @@ export class NavBarPage {
     await this.clickOnSignIn();
     return new SignInPage();
   }
-  async getPasswordPage(): Promise<PasswordPage> {
-    await this.clickOnAccountMenu();
-    await this.clickOnPasswordMenu();
-    return new PasswordPage();
-  }
-
-  async getSettingsPage(): Promise<SettingsPage> {
-    await this.clickOnAccountMenu();
-    await this.clickOnSettingsMenu();
-    return new SettingsPage();
-  }
 
   async goToEntity(entityName: string): Promise<void> {
     await this.clickOnEntityMenu();
@@ -96,9 +85,9 @@ export class NavBarPage {
 }
 
 export class SignInPage {
-  username = element(by.id('username'));
-  password = element(by.id('password'));
-  loginButton = element(by.css('button[type=submit]'));
+  username = element(by.name('username'));
+  password = element(by.name('password'));
+  loginButton = element(by.css('input[type=submit]'));
 
   async setUserName(username: string): Promise<void> {
     await this.username.sendKeys(username);
@@ -124,108 +113,24 @@ export class SignInPage {
     await this.password.clear();
   }
 
-  async autoSignInUsing(username: string, password: string): Promise<void> {
-    await this.setUserName(username);
-    await this.setPassword(password);
-    await this.login();
+  async loginWithOAuth(username: string, password: string): Promise<void> {
+    // Entering non angular site, tell webdriver to switch to synchronous mode.
+    await browser.waitForAngularEnabled(false);
+
+    if (await this.username.isPresent()) {
+      await this.username.sendKeys(username);
+      await this.password.sendKeys(password);
+      await this.loginButton.click();
+      if (!(await this.username.isPresent())) {
+        await browser.waitForAngularEnabled(true);
+      }
+    } else {
+      // redirected back because already logged in
+      browser.waitForAngularEnabled(true);
+    }
   }
 
   async login(): Promise<void> {
     await this.loginButton.click();
-  }
-}
-export class PasswordPage {
-  currentPassword = element(by.id('currentPassword'));
-  password = element(by.id('newPassword'));
-  confirmPassword = element(by.id('confirmPassword'));
-  saveButton = element(by.css('button[type=submit]'));
-  title = element.all(by.css('h2')).first();
-
-  async setCurrentPassword(password: string): Promise<void> {
-    await this.currentPassword.sendKeys(password);
-  }
-
-  async setPassword(password: string): Promise<void> {
-    await this.password.sendKeys(password);
-  }
-
-  async getPassword(): Promise<string> {
-    return this.password.getAttribute('value');
-  }
-
-  async clearPassword(): Promise<void> {
-    await this.password.clear();
-  }
-
-  async setConfirmPassword(confirmPassword: string): Promise<void> {
-    await this.confirmPassword.sendKeys(confirmPassword);
-  }
-
-  async getConfirmPassword(): Promise<string> {
-    return this.confirmPassword.getAttribute('value');
-  }
-
-  async clearConfirmPassword(): Promise<void> {
-    await this.confirmPassword.clear();
-  }
-
-  async getTitle(): Promise<string> {
-    return this.title.getAttribute('jhiTranslate');
-  }
-
-  async save(): Promise<void> {
-    await this.saveButton.click();
-  }
-}
-
-export class SettingsPage {
-  firstName = element(by.id('firstName'));
-  lastName = element(by.id('lastName'));
-  email = element(by.id('email'));
-  saveButton = element(by.css('button[type=submit]'));
-  title = element.all(by.css('h2')).first();
-
-  async setFirstName(firstName: string): Promise<void> {
-    await this.firstName.sendKeys(firstName);
-  }
-
-  async getFirstName(): Promise<string> {
-    return this.firstName.getAttribute('value');
-  }
-
-  async clearFirstName(): Promise<void> {
-    await this.firstName.clear();
-  }
-
-  async setLastName(lastName: string): Promise<void> {
-    await this.lastName.sendKeys(lastName);
-  }
-
-  async getLastName(): Promise<string> {
-    return this.lastName.getAttribute('value');
-  }
-
-  async clearLastName(): Promise<void> {
-    await this.lastName.clear();
-  }
-
-  async setEmail(email: string): Promise<void> {
-    await this.email.sendKeys(email);
-  }
-
-  async getEmail(): Promise<string> {
-    return this.email.getAttribute('value');
-  }
-
-  async clearEmail(): Promise<void> {
-    await this.email.clear();
-  }
-
-  async getTitle(): Promise<string> {
-    return this.title.getAttribute('jhiTranslate');
-  }
-
-  async save(): Promise<void> {
-    await this.saveButton.click();
   }
 }

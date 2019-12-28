@@ -1,17 +1,17 @@
 package com.mycompany.myapp.web.rest;
 
 import com.mycompany.myapp.JhipsterApp;
+import com.mycompany.myapp.config.TestSecurityConfiguration;
 import com.mycompany.myapp.config.ReactivePageableHandlerMethodArgumentResolver;
 import com.mycompany.myapp.domain.Authority;
 import com.mycompany.myapp.domain.User;
 import com.mycompany.myapp.repository.UserRepository;
 import com.mycompany.myapp.security.AuthoritiesConstants;
-import com.mycompany.myapp.service.MailService;
+
 import com.mycompany.myapp.service.UserService;
 import com.mycompany.myapp.service.dto.UserDTO;
 import com.mycompany.myapp.service.mapper.UserMapper;
 import com.mycompany.myapp.web.rest.errors.ExceptionTranslator;
-import com.mycompany.myapp.web.rest.vm.ManagedUserVM;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,37 +28,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration tests for the {@link UserResource} REST controller.
  */
-@SpringBootTest(classes = JhipsterApp.class)
+@SpringBootTest(classes = {JhipsterApp.class, TestSecurityConfiguration.class})
 public class UserResourceIT {
 
     private static final String DEFAULT_LOGIN = "johndoe";
-    private static final String UPDATED_LOGIN = "jhipster";
 
     private static final String DEFAULT_ID = "id1";
 
     private static final String DEFAULT_PASSWORD = "passjohndoe";
-    private static final String UPDATED_PASSWORD = "passjhipster";
 
     private static final String DEFAULT_EMAIL = "johndoe@localhost";
-    private static final String UPDATED_EMAIL = "jhipster@localhost";
 
     private static final String DEFAULT_FIRSTNAME = "john";
-    private static final String UPDATED_FIRSTNAME = "jhipsterFirstName";
 
     private static final String DEFAULT_LASTNAME = "doe";
-    private static final String UPDATED_LASTNAME = "jhipsterLastName";
 
     private static final String DEFAULT_IMAGEURL = "http://placehold.it/50x50";
-    private static final String UPDATED_IMAGEURL = "http://placehold.it/40x40";
 
     private static final String DEFAULT_LANGKEY = "en";
-    private static final String UPDATED_LANGKEY = "fr";
 
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private MailService mailService;
 
     @Autowired
     private UserService userService;
@@ -75,7 +65,7 @@ public class UserResourceIT {
 
     @BeforeEach
     public void setup() {
-        UserResource userResource = new UserResource(userService, userRepository, mailService);
+        UserResource userResource = new UserResource(userService);
 
         this.webTestClient = WebTestClient.bindToController(userResource)
             .argumentResolvers(configurer -> configurer.addCustomResolver(new ReactivePageableHandlerMethodArgumentResolver()))
@@ -91,8 +81,8 @@ public class UserResourceIT {
      */
     public static User createEntity() {
         User user = new User();
+        user.setId(UUID.randomUUID().toString());
         user.setLogin(DEFAULT_LOGIN);
-        user.setPassword(RandomStringUtils.random(60));
         user.setActivated(true);
         user.setEmail(DEFAULT_EMAIL);
         user.setFirstName(DEFAULT_FIRSTNAME);
@@ -106,130 +96,6 @@ public class UserResourceIT {
     public void initTest() {
         userRepository.deleteAll().block();
         user = createEntity();
-    }
-
-    @Test
-    public void createUser() throws Exception {
-        int databaseSizeBeforeCreate = userRepository.findAll()
-            .collectList().block().size();
-
-        // Create the User
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setLogin(DEFAULT_LOGIN);
-        managedUserVM.setPassword(DEFAULT_PASSWORD);
-        managedUserVM.setFirstName(DEFAULT_FIRSTNAME);
-        managedUserVM.setLastName(DEFAULT_LASTNAME);
-        managedUserVM.setEmail(DEFAULT_EMAIL);
-        managedUserVM.setActivated(true);
-        managedUserVM.setImageUrl(DEFAULT_IMAGEURL);
-        managedUserVM.setLangKey(DEFAULT_LANGKEY);
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        webTestClient.post().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isCreated();
-
-        // Validate the User in the database
-        List<User> userList = userRepository.findAll().collectList().block();
-        assertThat(userList).hasSize(databaseSizeBeforeCreate + 1);
-        User testUser = userList.get(userList.size() - 1);
-        assertThat(testUser.getLogin()).isEqualTo(DEFAULT_LOGIN);
-        assertThat(testUser.getFirstName()).isEqualTo(DEFAULT_FIRSTNAME);
-        assertThat(testUser.getLastName()).isEqualTo(DEFAULT_LASTNAME);
-        assertThat(testUser.getEmail()).isEqualTo(DEFAULT_EMAIL);
-        assertThat(testUser.getImageUrl()).isEqualTo(DEFAULT_IMAGEURL);
-        assertThat(testUser.getLangKey()).isEqualTo(DEFAULT_LANGKEY);
-    }
-
-    @Test
-    public void createUserWithExistingId() throws Exception {
-        int databaseSizeBeforeCreate = userRepository.findAll()
-            .collectList().block().size();
-
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setId("1L");
-        managedUserVM.setLogin(DEFAULT_LOGIN);
-        managedUserVM.setPassword(DEFAULT_PASSWORD);
-        managedUserVM.setFirstName(DEFAULT_FIRSTNAME);
-        managedUserVM.setLastName(DEFAULT_LASTNAME);
-        managedUserVM.setEmail(DEFAULT_EMAIL);
-        managedUserVM.setActivated(true);
-        managedUserVM.setImageUrl(DEFAULT_IMAGEURL);
-        managedUserVM.setLangKey(DEFAULT_LANGKEY);
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        // An entity with an existing ID cannot be created, so this API call must fail
-        webTestClient.post().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isBadRequest();
-
-        // Validate the User in the database
-        List<User> userList = userRepository.findAll().collectList().block();
-        assertThat(userList).hasSize(databaseSizeBeforeCreate);
-    }
-
-    @Test
-    public void createUserWithExistingLogin() throws Exception {
-        // Initialize the database
-        userRepository.save(user).block();
-        int databaseSizeBeforeCreate = userRepository.findAll()
-            .collectList().block().size();
-
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setLogin(DEFAULT_LOGIN);// this login should already be used
-        managedUserVM.setPassword(DEFAULT_PASSWORD);
-        managedUserVM.setFirstName(DEFAULT_FIRSTNAME);
-        managedUserVM.setLastName(DEFAULT_LASTNAME);
-        managedUserVM.setEmail("anothermail@localhost");
-        managedUserVM.setActivated(true);
-        managedUserVM.setImageUrl(DEFAULT_IMAGEURL);
-        managedUserVM.setLangKey(DEFAULT_LANGKEY);
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        // Create the User
-        webTestClient.post().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isBadRequest();
-
-        // Validate the User in the database
-        List<User> userList = userRepository.findAll().collectList().block();
-        assertThat(userList).hasSize(databaseSizeBeforeCreate);
-    }
-
-    @Test
-    public void createUserWithExistingEmail() throws Exception {
-        // Initialize the database
-        userRepository.save(user).block();
-        int databaseSizeBeforeCreate = userRepository.findAll()
-            .collectList().block().size();
-
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setLogin("anotherlogin");
-        managedUserVM.setPassword(DEFAULT_PASSWORD);
-        managedUserVM.setFirstName(DEFAULT_FIRSTNAME);
-        managedUserVM.setLastName(DEFAULT_LASTNAME);
-        managedUserVM.setEmail(DEFAULT_EMAIL);// this email should already be used
-        managedUserVM.setActivated(true);
-        managedUserVM.setImageUrl(DEFAULT_IMAGEURL);
-        managedUserVM.setLangKey(DEFAULT_LANGKEY);
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        // Create the User
-        webTestClient.post().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isBadRequest();
-
-        // Validate the User in the database
-        List<User> userList = userRepository.findAll().collectList().block();
-        assertThat(userList).hasSize(databaseSizeBeforeCreate);
     }
 
     @Test
@@ -278,195 +144,6 @@ public class UserResourceIT {
         webTestClient.get().uri("/api/users/unknown")
             .exchange()
             .expectStatus().isNotFound();
-    }
-
-    @Test
-    public void updateUser() throws Exception {
-        // Initialize the database
-        userRepository.save(user).block();
-        int databaseSizeBeforeUpdate = userRepository.findAll()
-            .collectList().block().size();
-
-        // Update the user
-        User updatedUser = userRepository.findById(user.getId()).block();
-
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setId(updatedUser.getId());
-        managedUserVM.setLogin(updatedUser.getLogin());
-        managedUserVM.setPassword(UPDATED_PASSWORD);
-        managedUserVM.setFirstName(UPDATED_FIRSTNAME);
-        managedUserVM.setLastName(UPDATED_LASTNAME);
-        managedUserVM.setEmail(UPDATED_EMAIL);
-        managedUserVM.setActivated(updatedUser.getActivated());
-        managedUserVM.setImageUrl(UPDATED_IMAGEURL);
-        managedUserVM.setLangKey(UPDATED_LANGKEY);
-        managedUserVM.setCreatedBy(updatedUser.getCreatedBy());
-        managedUserVM.setCreatedDate(updatedUser.getCreatedDate());
-        managedUserVM.setLastModifiedBy(updatedUser.getLastModifiedBy());
-        managedUserVM.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        webTestClient.put().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isOk();
-
-        // Validate the User in the database
-        List<User> userList = userRepository.findAll().collectList().block();
-        assertThat(userList).hasSize(databaseSizeBeforeUpdate);
-        User testUser = userList.get(userList.size() - 1);
-        assertThat(testUser.getFirstName()).isEqualTo(UPDATED_FIRSTNAME);
-        assertThat(testUser.getLastName()).isEqualTo(UPDATED_LASTNAME);
-        assertThat(testUser.getEmail()).isEqualTo(UPDATED_EMAIL);
-        assertThat(testUser.getImageUrl()).isEqualTo(UPDATED_IMAGEURL);
-        assertThat(testUser.getLangKey()).isEqualTo(UPDATED_LANGKEY);
-    }
-
-    @Test
-    public void updateUserLogin() throws Exception {
-        // Initialize the database
-        userRepository.save(user).block();
-        int databaseSizeBeforeUpdate = userRepository.findAll()
-            .collectList().block().size();
-
-        // Update the user
-        User updatedUser = userRepository.findById(user.getId()).block();
-
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setId(updatedUser.getId());
-        managedUserVM.setLogin(UPDATED_LOGIN);
-        managedUserVM.setPassword(UPDATED_PASSWORD);
-        managedUserVM.setFirstName(UPDATED_FIRSTNAME);
-        managedUserVM.setLastName(UPDATED_LASTNAME);
-        managedUserVM.setEmail(UPDATED_EMAIL);
-        managedUserVM.setActivated(updatedUser.getActivated());
-        managedUserVM.setImageUrl(UPDATED_IMAGEURL);
-        managedUserVM.setLangKey(UPDATED_LANGKEY);
-        managedUserVM.setCreatedBy(updatedUser.getCreatedBy());
-        managedUserVM.setCreatedDate(updatedUser.getCreatedDate());
-        managedUserVM.setLastModifiedBy(updatedUser.getLastModifiedBy());
-        managedUserVM.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        webTestClient.put().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isOk();
-
-        // Validate the User in the database
-        List<User> userList = userRepository.findAll().collectList().block();
-        assertThat(userList).hasSize(databaseSizeBeforeUpdate);
-        User testUser = userList.get(userList.size() - 1);
-        assertThat(testUser.getLogin()).isEqualTo(UPDATED_LOGIN);
-        assertThat(testUser.getFirstName()).isEqualTo(UPDATED_FIRSTNAME);
-        assertThat(testUser.getLastName()).isEqualTo(UPDATED_LASTNAME);
-        assertThat(testUser.getEmail()).isEqualTo(UPDATED_EMAIL);
-        assertThat(testUser.getImageUrl()).isEqualTo(UPDATED_IMAGEURL);
-        assertThat(testUser.getLangKey()).isEqualTo(UPDATED_LANGKEY);
-    }
-
-    @Test
-    public void updateUserExistingEmail() throws Exception {
-        // Initialize the database with 2 users
-        userRepository.save(user).block();
-
-        User anotherUser = new User();
-        anotherUser.setLogin("jhipster");
-        anotherUser.setPassword(RandomStringUtils.random(60));
-        anotherUser.setActivated(true);
-        anotherUser.setEmail("jhipster@localhost");
-        anotherUser.setFirstName("java");
-        anotherUser.setLastName("hipster");
-        anotherUser.setImageUrl("");
-        anotherUser.setLangKey("en");
-        userRepository.save(anotherUser).block();
-
-        // Update the user
-        User updatedUser = userRepository.findById(user.getId()).block();
-
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setId(updatedUser.getId());
-        managedUserVM.setLogin(updatedUser.getLogin());
-        managedUserVM.setPassword(updatedUser.getPassword());
-        managedUserVM.setFirstName(updatedUser.getFirstName());
-        managedUserVM.setLastName(updatedUser.getLastName());
-        managedUserVM.setEmail("jhipster@localhost");// this email should already be used by anotherUser
-        managedUserVM.setActivated(updatedUser.getActivated());
-        managedUserVM.setImageUrl(updatedUser.getImageUrl());
-        managedUserVM.setLangKey(updatedUser.getLangKey());
-        managedUserVM.setCreatedBy(updatedUser.getCreatedBy());
-        managedUserVM.setCreatedDate(updatedUser.getCreatedDate());
-        managedUserVM.setLastModifiedBy(updatedUser.getLastModifiedBy());
-        managedUserVM.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        webTestClient.put().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isBadRequest();
-    }
-
-    @Test
-    public void updateUserExistingLogin() throws Exception {
-        // Initialize the database
-        userRepository.save(user).block();
-
-        User anotherUser = new User();
-        anotherUser.setLogin("jhipster");
-        anotherUser.setPassword(RandomStringUtils.random(60));
-        anotherUser.setActivated(true);
-        anotherUser.setEmail("jhipster@localhost");
-        anotherUser.setFirstName("java");
-        anotherUser.setLastName("hipster");
-        anotherUser.setImageUrl("");
-        anotherUser.setLangKey("en");
-        userRepository.save(anotherUser).block();
-
-        // Update the user
-        User updatedUser = userRepository.findById(user.getId()).block();
-
-        ManagedUserVM managedUserVM = new ManagedUserVM();
-        managedUserVM.setId(updatedUser.getId());
-        managedUserVM.setLogin("jhipster");// this login should already be used by anotherUser
-        managedUserVM.setPassword(updatedUser.getPassword());
-        managedUserVM.setFirstName(updatedUser.getFirstName());
-        managedUserVM.setLastName(updatedUser.getLastName());
-        managedUserVM.setEmail(updatedUser.getEmail());
-        managedUserVM.setActivated(updatedUser.getActivated());
-        managedUserVM.setImageUrl(updatedUser.getImageUrl());
-        managedUserVM.setLangKey(updatedUser.getLangKey());
-        managedUserVM.setCreatedBy(updatedUser.getCreatedBy());
-        managedUserVM.setCreatedDate(updatedUser.getCreatedDate());
-        managedUserVM.setLastModifiedBy(updatedUser.getLastModifiedBy());
-        managedUserVM.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        managedUserVM.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
-
-        webTestClient.put().uri("/api/users")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .syncBody(TestUtil.convertObjectToJsonBytes(managedUserVM))
-            .exchange()
-            .expectStatus().isBadRequest();
-    }
-
-    @Test
-    public void deleteUser() {
-        // Initialize the database
-        userRepository.save(user).block();
-        int databaseSizeBeforeDelete = userRepository.findAll()
-            .collectList().block().size();
-
-        // Delete the user
-        webTestClient.delete().uri("/api/users/{login}", user.getLogin())
-            .accept(TestUtil.APPLICATION_JSON_UTF8)
-            .exchange()
-            .expectStatus().isNoContent();
-
-        // Validate the database is empty
-        List<User> userList = userRepository.findAll().collectList().block();
-        assertThat(userList).hasSize(databaseSizeBeforeDelete - 1);
     }
 
     @Test

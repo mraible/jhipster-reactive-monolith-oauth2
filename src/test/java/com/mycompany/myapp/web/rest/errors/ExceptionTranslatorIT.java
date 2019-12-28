@@ -1,6 +1,7 @@
 package com.mycompany.myapp.web.rest.errors;
 
 import com.mycompany.myapp.JhipsterApp;
+import com.mycompany.myapp.config.TestSecurityConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
