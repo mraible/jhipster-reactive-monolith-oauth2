@@ -118,7 +118,9 @@ public class SecurityConfiguration {
     Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthoritiesExtractor() {
         JwtAuthenticationConverter jwtAuthenticationConverter =
             new JwtAuthenticationConverter();
-        //todo: jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new JwtAuthorityExtractor());
+        // todo: jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter() does not exist
+        // Maybe we need to upgrade to Spring Security 5.2 for it?
+        // jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new JwtAuthorityExtractor());
         return new ReactiveJwtAuthenticationConverterAdapter(jwtAuthenticationConverter);
     }
 
