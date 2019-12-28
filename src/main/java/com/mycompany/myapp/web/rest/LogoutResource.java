@@ -4,42 +4,40 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
-* REST controller for managing global OIDC logout.
-*/
+ * REST controller for managing global OIDC logout.
+ */
 @RestController
 public class LogoutResource {
-    private ClientRegistration registration;
+    private Mono<ClientRegistration> registration;
 
-    public LogoutResource(ClientRegistrationRepository registrations) {
+    public LogoutResource(ReactiveClientRegistrationRepository registrations) {
         this.registration = registrations.findByRegistrationId("oidc");
     }
 
     /**
      * {@code POST  /api/logout} : logout the current user.
      *
-     * @param request the {@link HttpServletRequest}.
      * @param idToken the ID token.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and a body with a global logout URL and ID token.
      */
     @PostMapping("/api/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request,
-                                    @AuthenticationPrincipal(expression = "idToken") OidcIdToken idToken) {
-        String logoutUrl = this.registration.getProviderDetails()
+    public ResponseEntity<?> logout(@AuthenticationPrincipal(expression = "idToken") OidcIdToken idToken) {
+        String logoutUrl = this.registration.block().getProviderDetails()
             .getConfigurationMetadata().get("end_session_endpoint").toString();
 
         Map<String, String> logoutDetails = new HashMap<>();
         logoutDetails.put("logoutUrl", logoutUrl);
         logoutDetails.put("idToken", idToken.getTokenValue());
-        request.getSession().invalidate();
         return ResponseEntity.ok().body(logoutDetails);
     }
 }

@@ -1,21 +1,21 @@
 package com.mycompany.myapp.security.oauth2;
 
 import com.mycompany.myapp.security.SecurityUtils;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 
 @Component
-public class JwtAuthorityExtractor extends JwtAuthenticationConverter {
+public class JwtAuthorityExtractor implements Converter<Jwt, Collection<GrantedAuthority>> {
 
     public JwtAuthorityExtractor() {
     }
 
     @Override
-    protected Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+    public Collection<GrantedAuthority> convert(Jwt jwt) {
         return SecurityUtils.extractAuthorityFromClaims(jwt.getClaims());
     }
 }

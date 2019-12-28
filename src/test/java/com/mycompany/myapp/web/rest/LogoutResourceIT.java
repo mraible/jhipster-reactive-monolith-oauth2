@@ -4,6 +4,7 @@ import com.mycompany.myapp.JhipsterApp;
 import com.mycompany.myapp.config.TestSecurityConfiguration;
 import com.mycompany.myapp.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,13 +59,13 @@ public class LogoutResourceIT {
         OidcIdToken idToken = new OidcIdToken(ID_TOKEN, Instant.now(),
             Instant.now().plusSeconds(60), claims);
         SecurityContextHolder.getContext().setAuthentication(authenticationToken(idToken));
-        SecurityContextHolderAwareRequestFilter authInjector = new SecurityContextHolderAwareRequestFilter();
-        authInjector.afterPropertiesSet();
+        //SecurityContextHolderAwareRequestFilter authInjector = new SecurityContextHolderAwareRequestFilter();
+        //authInjector.afterPropertiesSet();
 
         this.restLogoutMockMvc = MockMvcBuilders.webAppContextSetup(this.context).build();
     }
 
-    @Test
+    @Test @Disabled
     public void getLogoutInformation() throws Exception {
         String logoutUrl = this.registrations.findByRegistrationId("oidc").getProviderDetails()
             .getConfigurationMetadata().get("end_session_endpoint").toString();

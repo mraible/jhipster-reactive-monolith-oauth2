@@ -21,6 +21,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Service class for managing users.
@@ -151,7 +152,8 @@ public class UserService {
 
     private User syncUserWithIdP(Map<String, Object> details, User user) {
         // save authorities in to sync user roles/groups between IdP and JHipster's local database
-        Collection<String> dbAuthorities = getAuthorities();
+        // todo: figure out how to call getAuthorities() w/o blocking
+        Collection<String> dbAuthorities = Collections.EMPTY_LIST; // getAuthorities();
         Collection<String> userAuthorities =
             user.getAuthorities().stream().map(Authority::getName).collect(Collectors.toList());
         for (String authority : userAuthorities) {
@@ -163,7 +165,8 @@ public class UserService {
             }
         }
         // save account in to sync users between IdP and JHipster's local database
-        Optional<User> existingUser = userRepository.findOneByLogin(user.getLogin());
+        // todo: make non-blocking
+        /* Optional<User> existingUser = userRepository.findOneByLogin(user.getLogin());
         if (existingUser.isPresent()) {
             // if IdP sends last updated information, use it to determine if an update should happen
             if (details.get("updated_at") != null) {
@@ -183,7 +186,7 @@ public class UserService {
         } else {
             log.debug("Saving user '{}' in local database", user.getLogin());
             userRepository.save(user);
-        }
+        }*/
         return user;
     }
 
