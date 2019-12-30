@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * Integration tests {@link ExceptionTranslator} controller advice.
  */
-@SpringBootTest(classes = JhipsterApp.class)
+@SpringBootTest(classes = {JhipsterApp.class, TestSecurityConfiguration.class})
 public class ExceptionTranslatorIT {
 
     @Autowired
@@ -66,7 +66,7 @@ public class ExceptionTranslatorIT {
     public void testMethodArgumentNotValid() {
          webTestClient.post().uri("/test/method-argument")
              .contentType(MediaType.APPLICATION_JSON)
-             .syncBody("{}")
+             .bodyValue("{}")
              .exchange()
              .expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
              .expectBody()

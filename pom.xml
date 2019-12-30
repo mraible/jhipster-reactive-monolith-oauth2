@@ -42,7 +42,7 @@
         <jhipster-dependencies.version>3.2.0-SNAPSHOT</jhipster-dependencies.version>
         <!-- The spring-boot version should match the one managed by
         https://mvnrepository.com/artifact/io.github.jhipster/jhipster-dependencies/${jhipster-dependencies.version} -->
-        <spring-boot.version>2.1.11.RELEASE</spring-boot.version>
+        <spring-boot.version>2.2.2.RELEASE</spring-boot.version>
         <archunit-junit5.version>0.12.0</archunit-junit5.version>
         <mapstruct.version>1.3.1.Final</mapstruct.version>
         <!-- Plugin versions -->
@@ -215,8 +215,8 @@
             <scope>test</scope>
             <exclusions>
                 <exclusion>
-                    <groupId>junit</groupId>
-                    <artifactId>junit</artifactId>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

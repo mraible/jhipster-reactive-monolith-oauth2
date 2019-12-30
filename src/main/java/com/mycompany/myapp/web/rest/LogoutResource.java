@@ -1,9 +1,9 @@
 package com.mycompany.myapp.web.rest;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +17,7 @@ import java.util.Map;
  * REST controller for managing global OIDC logout.
  */
 @RestController
+@Lazy
 public class LogoutResource {
     private Mono<ClientRegistration> registration;
 

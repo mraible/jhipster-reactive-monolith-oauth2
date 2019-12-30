@@ -108,7 +108,7 @@ public class UserResourceIT {
             .accept(MediaType.APPLICATION_JSON)
             .exchange()
             .expectStatus().isOk()
-            .expectHeader().contentType(MediaType.APPLICATION_JSON_UTF8)
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
             .returnResult(UserDTO.class).getResponseBody().blockFirst();
 
         assertThat(foundUser.getLogin()).isEqualTo(DEFAULT_LOGIN);
@@ -128,7 +128,7 @@ public class UserResourceIT {
         webTestClient.get().uri("/api/users/{login}", user.getLogin())
             .exchange()
             .expectStatus().isOk()
-            .expectHeader().contentType(MediaType.APPLICATION_JSON_UTF8)
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
             .expectBody()
             .jsonPath("$.login").isEqualTo(user.getLogin())
             .jsonPath("$.firstName").isEqualTo(DEFAULT_FIRSTNAME)
@@ -149,10 +149,10 @@ public class UserResourceIT {
     @Test
     public void getAllAuthorities() {
         webTestClient.get().uri("/api/users/authorities")
-            .accept(TestUtil.APPLICATION_JSON_UTF8)
+            .accept(TestUtil.APPLICATION_JSON)
             .exchange()
             .expectStatus().isOk()
-            .expectHeader().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE)
+            .expectHeader().contentType(MediaType.APPLICATION_JSON_VALUE)
             .expectBody()
             .jsonPath("$").isArray()
             .jsonPath("$[?(@=='" + AuthoritiesConstants.ADMIN + "')]").hasJsonPath()
