@@ -90,7 +90,7 @@ public class UserServiceIT {
     @Test
     public void testDefaultUserDetails() {
         OAuth2AuthenticationToken authentication = createMockOAuth2AuthenticationToken(userDetails);
-        UserDTO userDTO = userService.getUserFromAuthentication(authentication);
+        UserDTO userDTO = userService.getUserFromAuthentication(authentication).block();
 
         assertThat(userDTO.getLogin()).isEqualTo(DEFAULT_LOGIN);
         assertThat(userDTO.getFirstName()).isEqualTo(DEFAULT_FIRSTNAME);
@@ -107,7 +107,7 @@ public class UserServiceIT {
         userDetails.put("preferred_username", "TEST");
 
         OAuth2AuthenticationToken authentication = createMockOAuth2AuthenticationToken(userDetails);
-        UserDTO userDTO = userService.getUserFromAuthentication(authentication);
+        UserDTO userDTO = userService.getUserFromAuthentication(authentication).block();
 
         assertThat(userDTO.getLogin()).isEqualTo("test");
     }
@@ -118,7 +118,7 @@ public class UserServiceIT {
         userDetails.put("locale", "en-US");
 
         OAuth2AuthenticationToken authentication = createMockOAuth2AuthenticationToken(userDetails);
-        UserDTO userDTO = userService.getUserFromAuthentication(authentication);
+        UserDTO userDTO = userService.getUserFromAuthentication(authentication).block();
 
         assertThat(userDTO.getLangKey()).isEqualTo(DEFAULT_LANGKEY);
     }
@@ -128,7 +128,7 @@ public class UserServiceIT {
         userDetails.put("locale", "it-IT");
 
         OAuth2AuthenticationToken authentication = createMockOAuth2AuthenticationToken(userDetails);
-        UserDTO userDTO = userService.getUserFromAuthentication(authentication);
+        UserDTO userDTO = userService.getUserFromAuthentication(authentication).block();
 
         assertThat(userDTO.getLangKey()).isEqualTo("it");
     }
@@ -138,7 +138,7 @@ public class UserServiceIT {
         userDetails.put("locale", "en_US");
 
         OAuth2AuthenticationToken authentication = createMockOAuth2AuthenticationToken(userDetails);
-        UserDTO userDTO = userService.getUserFromAuthentication(authentication);
+        UserDTO userDTO = userService.getUserFromAuthentication(authentication).block();
 
         assertThat(userDTO.getLangKey()).isEqualTo("en");
     }
@@ -148,7 +148,7 @@ public class UserServiceIT {
         userDetails.put("locale", "en-US");
 
         OAuth2AuthenticationToken authentication = createMockOAuth2AuthenticationToken(userDetails);
-        UserDTO userDTO = userService.getUserFromAuthentication(authentication);
+        UserDTO userDTO = userService.getUserFromAuthentication(authentication).block();
 
         assertThat(userDTO.getLangKey()).isEqualTo("en");
     }

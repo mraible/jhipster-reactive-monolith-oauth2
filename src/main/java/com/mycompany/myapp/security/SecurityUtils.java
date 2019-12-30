@@ -81,8 +81,7 @@ public final class SecurityUtils {
     }
 
     public static List<GrantedAuthority> extractAuthorityFromClaims(Map<String, Object> claims) {
-        return mapRolesToGrantedAuthorities(
-            getRolesFromClaims(claims));
+        return mapRolesToGrantedAuthorities(getRolesFromClaims(claims));
     }
 
     @SuppressWarnings("unchecked")

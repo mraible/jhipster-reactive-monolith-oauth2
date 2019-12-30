@@ -57,7 +57,7 @@ public class AccountResource {
     @SuppressWarnings("unchecked")
     public Mono<UserDTO> getAccount(Principal principal) {
         if (principal instanceof AbstractAuthenticationToken) {
-            return Mono.just(userService.getUserFromAuthentication((AbstractAuthenticationToken) principal));
+            return userService.getUserFromAuthentication((AbstractAuthenticationToken) principal);
         } else {
             throw new AccountResourceException("User could not be found");
         }
