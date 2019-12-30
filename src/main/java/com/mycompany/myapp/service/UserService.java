@@ -150,45 +150,40 @@ public class UserService {
         return authorityRepository.findAll().map(Authority::getName);
     }
 
-    private User syncUserWithIdP(Map<String, Object> details, User user) {
-        // save authorities in to sync user roles/groups between IdP and JHipster's local database
-        // todo: figure out how to call getAuthorities() w/o blocking
-        Collection<String> dbAuthorities = Collections.EMPTY_LIST; // getAuthorities();
-        Collection<String> userAuthorities =
-            user.getAuthorities().stream().map(Authority::getName).collect(Collectors.toList());
-        for (String authority : userAuthorities) {
-            if (!dbAuthorities.contains(authority)) {
-                log.debug("Saving authority '{}' in local database", authority);
-                Authority authorityToSave = new Authority();
-                authorityToSave.setName(authority);
-                authorityRepository.save(authorityToSave);
-            }
-        }
-        // save account in to sync users between IdP and JHipster's local database
-        // todo: make non-blocking
-        /* Optional<User> existingUser = userRepository.findOneByLogin(user.getLogin());
-        if (existingUser.isPresent()) {
+private Mono<User> syncUserWithIdP(Map<String, Object> details, User user) {
+    // save authorities in to sync user roles/groups between IdP and JHipster's local database
+    Flux<String> userAuthorities = Flux.fromStream(user.getAuthorities().stream().map(Authority::getName));
+    Flux<String> newAuthorities = Flux.merge(userAuthorities, getAuthorities()).distinct();
+
+    // check to see if user's authorities exist in database, add them if they don't
+    newAuthorities.flatMap(authority -> {
+        log.debug("Saving authority '{}' in local database", authority);
+        Authority authorityToSave = new Authority();
+        authorityToSave.setName(authority);
+        return authorityRepository.save(authorityToSave);
+    }).subscribe();
+
+    // save account in to sync users between IdP and JHipster's local database
+    return userRepository.findOneByLogin(user.getLogin())
+        .switchIfEmpty(userRepository.save(user).thenReturn(user))
+        .flatMap(existingUser -> {
             // if IdP sends last updated information, use it to determine if an update should happen
             if (details.get("updated_at") != null) {
-                Instant dbModifiedDate = existingUser.get().getLastModifiedDate();
+                Instant dbModifiedDate = existingUser.getLastModifiedDate();
                 Instant idpModifiedDate = new Date(Long.valueOf((Integer) details.get("updated_at"))).toInstant();
                 if (idpModifiedDate.isAfter(dbModifiedDate)) {
                     log.debug("Updating user '{}' in local database", user.getLogin());
-                    updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
-                        user.getLangKey(), user.getImageUrl());
+                    return updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
+                        user.getLangKey(), user.getImageUrl()).then();
                 }
                 // no last updated info, blindly update
             } else {
                 log.debug("Updating user '{}' in local database", user.getLogin());
-                updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
-                    user.getLangKey(), user.getImageUrl());
+                return updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
+                    user.getLangKey(), user.getImageUrl()).then();
             }
-        } else {
-            log.debug("Saving user '{}' in local database", user.getLogin());
-            userRepository.save(user);
-        }*/
-        return user;
-    }
+        });
+}
 
     /**
      * Returns the user from an OAuth 2.0 login or resource server with JWT.
@@ -197,7 +192,7 @@ public class UserService {
      * @param authToken the authentication token.
      * @return the user from the authentication.
      */
-    public UserDTO getUserFromAuthentication(AbstractAuthenticationToken authToken) {
+    public Mono<UserDTO> getUserFromAuthentication(AbstractAuthenticationToken authToken) {
         Map<String, Object> attributes;
         if (authToken instanceof OAuth2AuthenticationToken) {
             attributes = ((OAuth2AuthenticationToken) authToken).getPrincipal().getAttributes();
@@ -215,7 +210,7 @@ public class UserService {
                 return auth;
             })
             .collect(Collectors.toSet()));
-        return new UserDTO(syncUserWithIdP(attributes, user));
+        return Mono.just(new UserDTO(syncUserWithIdP(attributes, user)));
     }
 
     private static User getUser(Map<String, Object> details) {
