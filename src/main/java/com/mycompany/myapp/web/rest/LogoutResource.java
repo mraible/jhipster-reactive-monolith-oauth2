@@ -32,11 +32,11 @@ public class LogoutResource {
      */
     @PostMapping("/api/logout")
     public ResponseEntity<?> logout(@AuthenticationPrincipal(expression = "idToken") OidcIdToken idToken) {
-        String logoutUrl = this.registration.block().getProviderDetails()
-            .getConfigurationMetadata().get("end_session_endpoint").toString();
+        Mono<String> logoutUrl = this.registration.map(oidc ->
+            oidc.getProviderDetails().getConfigurationMetadata().get("end_session_endpoint").toString());
 
         Map<String, String> logoutDetails = new HashMap<>();
-        logoutDetails.put("logoutUrl", logoutUrl);
+        logoutDetails.put("logoutUrl", logoutUrl.toString());
         logoutDetails.put("idToken", idToken.getTokenValue());
         return ResponseEntity.ok().body(logoutDetails);
     }

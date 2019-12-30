@@ -7,7 +7,6 @@ import com.mycompany.myapp.repository.AuthorityRepository;
 import com.mycompany.myapp.repository.UserRepository;
 import com.mycompany.myapp.security.SecurityUtils;
 import com.mycompany.myapp.service.dto.UserDTO;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +19,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Date;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -56,7 +57,7 @@ public class UserService {
                 user.setFirstName(firstName);
                 user.setLastName(lastName);
                 if (email != null) {
-	                user.setEmail(email.toLowerCase());
+                    user.setEmail(email.toLowerCase());
                 }
                 user.setLangKey(langKey);
                 user.setImageUrl(imageUrl);
@@ -144,6 +145,7 @@ public class UserService {
 
     /**
      * Gets a list of all the authorities.
+     *
      * @return a list of all the authorities.
      */
     public Flux<String> getAuthorities() {
@@ -156,12 +158,14 @@ public class UserService {
         Flux<String> newAuthorities = Flux.merge(userAuthorities, getAuthorities()).distinct();
 
         // check to see if user's authorities exist in database, add them if they don't
-        newAuthorities.flatMap(authority -> {
-            log.debug("Saving authority '{}' in local database", authority);
-            Authority authorityToSave = new Authority();
-            authorityToSave.setName(authority);
-            return authorityRepository.save(authorityToSave);
-        }).subscribe(); // todo: fix 'calling subscribe in non-blocking scope'
+        newAuthorities
+            .filter(authority -> !authority.startsWith("SCOPE_"))
+            .flatMap(authority -> {
+                log.debug("Saving authority '{}' in local database", authority);
+                Authority authorityToSave = new Authority();
+                authorityToSave.setName(authority);
+                return authorityRepository.save(authorityToSave);
+            }).subscribe();
 
         // save account in to sync users between IdP and JHipster's local database
         return userRepository.findOneByLogin(user.getLogin())

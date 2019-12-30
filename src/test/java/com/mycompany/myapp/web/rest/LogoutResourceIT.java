@@ -4,23 +4,22 @@ import com.mycompany.myapp.JhipsterApp;
 import com.mycompany.myapp.config.TestSecurityConfiguration;
 import com.mycompany.myapp.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,8 +27,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.*;
 
 /**
  * Integration tests for the {@link LogoutResource} REST controller.
@@ -38,10 +36,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class LogoutResourceIT {
 
     @Autowired
-    private ClientRegistrationRepository registrations;
+    private ReactiveClientRegistrationRepository registrations;
 
     @Autowired
-    private WebApplicationContext context;
+    private ApplicationContext context;
 
     private final static String ID_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9" +
         ".eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsIm" +
@@ -49,31 +47,38 @@ public class LogoutResourceIT {
         "Tk3MTU4MywiZXhwIjoxNTQxOTc1MTgzfQ.QaQOarmV8xEUYV7yvWzX3cUE_4W1luMcWCwpr" +
         "oqqUrg";
 
-    private MockMvc restLogoutMockMvc;
+    WebTestClient webTestClient;
+
+    OidcIdToken idToken;
 
     @BeforeEach
-    public void before() throws Exception {
+    public void before() {
+        this.webTestClient = WebTestClient.bindToApplicationContext(this.context)
+            .apply(springSecurity())
+            .configureClient()
+            .build();
+
         Map<String, Object> claims = new HashMap<>();
         claims.put("groups", "ROLE_USER");
         claims.put("sub", 123);
-        OidcIdToken idToken = new OidcIdToken(ID_TOKEN, Instant.now(),
+        this.idToken = new OidcIdToken(ID_TOKEN, Instant.now(),
             Instant.now().plusSeconds(60), claims);
-        SecurityContextHolder.getContext().setAuthentication(authenticationToken(idToken));
-        //SecurityContextHolderAwareRequestFilter authInjector = new SecurityContextHolderAwareRequestFilter();
-        //authInjector.afterPropertiesSet();
-
-        this.restLogoutMockMvc = MockMvcBuilders.webAppContextSetup(this.context).build();
     }
 
-    @Test @Disabled
+    @Test
     public void getLogoutInformation() throws Exception {
-        String logoutUrl = this.registrations.findByRegistrationId("oidc").getProviderDetails()
-            .getConfigurationMetadata().get("end_session_endpoint").toString();
-        restLogoutMockMvc.perform(post("/api/logout"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-            .andExpect(jsonPath("$.logoutUrl").value(logoutUrl))
-            .andExpect(jsonPath("$.idToken").value(ID_TOKEN));
+        Mono<String> logoutUrl = this.registrations.findByRegistrationId("oidc")
+            .map(oidc -> oidc.getProviderDetails().getConfigurationMetadata()
+                .get("end_session_endpoint").toString());
+
+        this.webTestClient.mutateWith(csrf())
+            .mutateWith(mockAuthentication(authenticationToken(idToken)))
+            .post().uri("/api/logout").exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType(MediaType.APPLICATION_JSON_VALUE)
+            .expectBody()
+            .jsonPath("$.logoutUrl").isEqualTo(logoutUrl.toString())
+            .jsonPath("$.idToken").isEqualTo(ID_TOKEN);
     }
 
     private OAuth2AuthenticationToken authenticationToken(OidcIdToken idToken) {
