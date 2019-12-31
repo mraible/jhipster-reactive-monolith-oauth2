@@ -6,30 +6,23 @@ import com.mycompany.myapp.security.AuthoritiesConstants;
 import com.mycompany.myapp.service.UserService;
 import com.mycompany.myapp.web.rest.errors.ExceptionTranslator;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.test.context.TestSecurityContextHolder;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.web.server.context.SecurityContextServerWebExchangeWebFilter;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
-import java.util.Collection;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static com.mycompany.myapp.web.rest.TestUtil.ID_TOKEN;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.*;
 
 /**
  * Integration tests for the {@link AccountResource} REST controller.
@@ -43,71 +36,74 @@ public class AccountResourceIT {
     @Autowired
     private UserService userService;
 
-    private MockMvc restUserMockMvc;
+    private OidcIdToken idToken;
 
-    @Autowired
-    private WebApplicationContext context;
+    private WebTestClient webTestClient;
 
     @BeforeEach
     public void setup() {
         MockitoAnnotations.initMocks(this);
-        AccountResource accountUserMockResource = new AccountResource(userService);
+        AccountResource accountResource = new AccountResource(userService);
 
-        this.restUserMockMvc = MockMvcBuilders.standaloneSetup(accountUserMockResource)
-            .setControllerAdvice(exceptionTranslator)
-            .build();
-    }
-
-    @Test
-    public void testNonAuthenticatedUser() throws Exception {
-        restUserMockMvc.perform(get("/api/authenticate")
-            .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isOk())
-            .andExpect(content().string(""));
-    }
-
-    @Test
-    @Disabled
-    public void testAuthenticatedUser() throws Exception {
-        restUserMockMvc.perform(get("/api/authenticate")
-            /*.with(request -> {
-                request.setRemoteUser("test");
-                return request;
-            })*/
-            .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isOk())
-            .andExpect(content().string("test"));
-    }
-
-    @Test
-    public void testGetExistingAccount() throws Exception {
-        // create security-aware mockMvc
-        restUserMockMvc = MockMvcBuilders
-            .webAppContextSetup(context)
+        this.webTestClient = WebTestClient.bindToController(accountResource)
             .apply(springSecurity())
+            .controllerAdvice(exceptionTranslator)
+            .webFilter(new SecurityContextServerWebExchangeWebFilter())
             .build();
 
-        Map<String, Object> userDetails = new HashMap<>();
-        userDetails.put("sub", "test");
-        userDetails.put("email", "john.doe@jhipster.com");
-        Collection<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(AuthoritiesConstants.ADMIN));
-        OAuth2User user = new DefaultOAuth2User(authorities, userDetails, "sub");
-        OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(user, authorities, "oidc");
-        TestSecurityContextHolder.getContext().setAuthentication(authentication);
-
-        restUserMockMvc.perform(get("/api/account")
-            .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-            .andExpect(jsonPath("$.login").value("test"))
-            .andExpect(jsonPath("$.email").value("john.doe@jhipster.com"))
-            .andExpect(jsonPath("$.authorities").value(AuthoritiesConstants.ADMIN));
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("groups", Collections.singletonList(AuthoritiesConstants.ADMIN));
+        claims.put("sub", "jane");
+        claims.put("email", "jane.doe@jhipster.com");
+        this.idToken = new OidcIdToken(ID_TOKEN, Instant.now(),
+            Instant.now().plusSeconds(60), claims);
     }
 
     @Test
-    public void testGetUnknownAccount() throws Exception {
-        restUserMockMvc.perform(get("/api/account")
-            .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isInternalServerError());
+    public void testNonAuthenticatedUser() {
+        webTestClient.get().uri("/api/authenticate")
+            .accept(MediaType.APPLICATION_JSON)
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody().isEmpty();
+    }
+
+    @Test
+    public void testAuthenticatedUser() {
+        Jwt jwt = Jwt.withTokenValue("token")
+            .header("alg", "none")
+            .claim("preferred_username", "user").build();
+
+        webTestClient.mutateWith(mockJwt(jwt))
+            .mutateWith(csrf())
+            .get().uri("/api/authenticate")
+            .accept(MediaType.APPLICATION_JSON)
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(String.class).isEqualTo("user");
+    }
+
+    @Test
+    public void testGetExistingAccount() {
+        webTestClient
+            .mutateWith(mockAuthentication(TestUtil.authenticationToken(idToken)))
+            .mutateWith(csrf())
+            .get().uri("/api/account")
+            .accept(MediaType.APPLICATION_JSON)
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType(MediaType.APPLICATION_JSON_VALUE)
+            .expectBody()
+            .jsonPath("$.login").isEqualTo("jane")
+            .jsonPath("$.email").isEqualTo("jane.doe@jhipster.com")
+            .jsonPath("$.authorities").isEqualTo(AuthoritiesConstants.ADMIN);
+    }
+
+    @Test
+    public void testGetUnknownAccount() {
+        webTestClient.get().uri("/api/account")
+            .accept(MediaType.APPLICATION_JSON)
+            .exchange()
+            .expectStatus().is5xxServerError();
     }
 }

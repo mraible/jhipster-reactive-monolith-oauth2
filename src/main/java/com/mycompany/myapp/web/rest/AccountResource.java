@@ -1,12 +1,11 @@
 package com.mycompany.myapp.web.rest;
 
+import com.mycompany.myapp.security.SecurityUtils;
 import com.mycompany.myapp.service.UserService;
 import com.mycompany.myapp.service.dto.UserDTO;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,13 +42,12 @@ public class AccountResource {
     @GetMapping("/authenticate")
     public Mono<String> isAuthenticated() {
         log.debug("REST request to check if the current user is authenticated");
-        return Mono.justOrEmpty(SecurityContextHolder.getContext().getAuthentication().getName());
+        return SecurityUtils.getCurrentUserLogin();
     }
 
     /**
      * {@code GET  /account} : get the current user.
      *
-     * @param principal the current user; resolves to {@code null} if not authenticated.
      * @return the current user.
      * @throws AccountResourceException {@code 500 (Internal Server Error)} if the user couldn't be returned.
      */

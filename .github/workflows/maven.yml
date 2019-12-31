@@ -16,4 +16,4 @@ jobs:
     - name: Install JHipster Dependencies Snapshot
       run: git clone https://github.com/jhipster/jhipster.git && mvn -ntp install -f jhipster -Dgpg.skip=true
     - name: Build with Maven
-      run: mvn -ntp verify
+      run: mvn -ntp verify -P 'dev,!webpack'
