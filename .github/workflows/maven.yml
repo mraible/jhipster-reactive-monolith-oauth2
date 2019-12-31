@@ -13,5 +13,10 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 11
+    - name: Install JHipster Dependencies Snapshot
+      run:
+        - git clone https://github.com/jhipster/jhipster.git
+        - cd jhipster
+        - mvn install
     - name: Build with Maven
       run: mvn -ntp verify
