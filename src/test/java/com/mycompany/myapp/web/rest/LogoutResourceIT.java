@@ -2,27 +2,21 @@ package com.mycompany.myapp.web.rest;
 
 import com.mycompany.myapp.JhipsterApp;
 import com.mycompany.myapp.config.TestSecurityConfiguration;
-import com.mycompany.myapp.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.mycompany.myapp.web.rest.TestUtil.ID_TOKEN;
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.*;
@@ -59,9 +53,10 @@ public class LogoutResourceIT {
 
     @Test
     public void getLogoutInformation() {
-        Mono<String> logoutUrl = this.registrations.findByRegistrationId("oidc")
+        String logoutUrl = this.registrations.findByRegistrationId("oidc")
             .map(oidc -> oidc.getProviderDetails().getConfigurationMetadata()
-                .get("end_session_endpoint").toString());
+                .get("end_session_endpoint").toString())
+            .block();
 
         this.webTestClient.mutateWith(csrf())
             .mutateWith(mockAuthentication(TestUtil.authenticationToken(idToken)))

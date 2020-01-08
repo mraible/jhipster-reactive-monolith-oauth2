@@ -19,10 +19,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -155,40 +152,44 @@ public class UserService {
 
     private Mono<User> syncUserWithIdP(Map<String, Object> details, User user) {
         // save authorities in to sync user roles/groups between IdP and JHipster's local database
-        Flux<String> userAuthorities = Flux.fromStream(user.getAuthorities().stream().map(Authority::getName));
-        Flux<String> newAuthorities = Flux.merge(userAuthorities, getAuthorities()).distinct();
+        Collection<String> userAuthorities =
+            user.getAuthorities().stream().map(Authority::getName).collect(Collectors.toList());
 
-        // check to see if user's authorities exist in database, add them if they don't
-        newAuthorities
-            .filter(authority -> !authority.startsWith("SCOPE_"))
-            .flatMap(authority -> {
-                log.debug("Saving authority '{}' in local database", authority);
-                Authority authorityToSave = new Authority();
-                authorityToSave.setName(authority);
-                return authorityRepository.save(authorityToSave);
-            }).subscribe();
-
-        // save account in to sync users between IdP and JHipster's local database
-        return userRepository.findOneByLogin(user.getLogin())
-            .switchIfEmpty(userRepository.save(user).thenReturn(user))
+        return getAuthorities().collectList()
+            .flatMapMany(dbAuthorities -> {
+                List<Authority> authoritiesToSave = userAuthorities.stream()
+                    .filter(authority -> !dbAuthorities.contains(authority))
+                    .map(authority -> {
+                        Authority authorityToSave = new Authority();
+                        authorityToSave.setName(authority);
+                        return authorityToSave;
+                    })
+                    .collect(Collectors.toList());
+                return Flux.fromIterable(authoritiesToSave);
+            })
+            .doOnNext(authority -> log.debug("Saving authority '{}' in local database", authority))
+            .flatMap(authorityRepository::save)
+            .then(userRepository.findOneByLogin(user.getLogin()))
+            .switchIfEmpty(userRepository.save(user))
             .flatMap(existingUser -> {
                 // if IdP sends last updated information, use it to determine if an update should happen
                 if (details.get("updated_at") != null) {
                     Instant dbModifiedDate = existingUser.getLastModifiedDate();
-                    Instant idpModifiedDate = new Date(Long.valueOf((Integer) details.get("updated_at"))).toInstant();
+                    Instant idpModifiedDate = Date.from((Instant) details.get("updated_at")).toInstant();
                     if (idpModifiedDate.isAfter(dbModifiedDate)) {
                         log.debug("Updating user '{}' in local database", user.getLogin());
-                        updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
+                        return updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
                             user.getLangKey(), user.getImageUrl());
                     }
                     // no last updated info, blindly update
                 } else {
                     log.debug("Updating user '{}' in local database", user.getLogin());
-                    updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
+                    return updateUser(user.getFirstName(), user.getLastName(), user.getEmail(),
                         user.getLangKey(), user.getImageUrl());
                 }
-                return Mono.just(user);
-            });
+                return Mono.empty();
+            })
+            .thenReturn(user);
     }
 
     /**
