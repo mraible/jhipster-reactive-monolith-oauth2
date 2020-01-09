@@ -29,22 +29,24 @@ public final class SecurityUtils {
     public static Mono<String> getCurrentUserLogin() {
         return ReactiveSecurityContextHolder.getContext()
             .map(SecurityContext::getAuthentication)
-            .map(authentication -> {
-                if (authentication.getPrincipal() instanceof UserDetails) {
-                    UserDetails springSecurityUser = (UserDetails) authentication.getPrincipal();
-                    return springSecurityUser.getUsername();
-                } else if (authentication instanceof JwtAuthenticationToken) {
-                    return (String) ((JwtAuthenticationToken)authentication).getToken().getClaims().get("preferred_username");
-                } else if (authentication.getPrincipal() instanceof DefaultOidcUser) {
-                    Map<String, Object> attributes = ((DefaultOidcUser) authentication.getPrincipal()).getAttributes();
-                    if (attributes.containsKey("preferred_username")) {
-                        return (String) attributes.get("preferred_username");
-                    }
-                } else if (authentication.getPrincipal() instanceof String) {
-                    return (String) authentication.getPrincipal();
-                }
-                return null;
-            });
+            .flatMap(authentication -> Mono.justOrEmpty(extractPrincipal(authentication)));
+    }
+
+    private static String extractPrincipal(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof UserDetails) {
+            UserDetails springSecurityUser = (UserDetails) authentication.getPrincipal();
+            return springSecurityUser.getUsername();
+        } else if (authentication instanceof JwtAuthenticationToken) {
+            return (String) ((JwtAuthenticationToken)authentication).getToken().getClaims().get("preferred_username");
+        } else if (authentication.getPrincipal() instanceof DefaultOidcUser) {
+            Map<String, Object> attributes = ((DefaultOidcUser) authentication.getPrincipal()).getAttributes();
+            if (attributes.containsKey("preferred_username")) {
+                return (String) attributes.get("preferred_username");
+            }
+        } else if (authentication.getPrincipal() instanceof String) {
+            return (String) authentication.getPrincipal();
+        }
+        return null;
     }
 
     /**
