@@ -12,6 +12,7 @@ import java.util.Collection;
 public class JwtAuthorityExtractor extends JwtAuthenticationConverter {
 
     public JwtAuthorityExtractor() {
+        // Bean extracting authority.
     }
 
     @Override
