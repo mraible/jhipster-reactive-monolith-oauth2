@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.userinfo.ReactiveOAuth2UserService;
@@ -102,8 +103,8 @@ public class SecurityConfiguration {
                 .pathMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             .and()
                 .oauth2Login()
-                .authenticationSuccessHandler(this::onAuthenticationSuccess)
-                .authenticationFailureHandler(this::onAuthenticationError)
+                //.authenticationSuccessHandler(this::onAuthenticationSuccess)
+                //.authenticationFailureHandler(this::onAuthenticationError)
             .and()
                 .oauth2ResourceServer()
                 .jwt()
@@ -174,8 +175,8 @@ public class SecurityConfiguration {
     private Mono<Void> onAuthenticationSuccess(WebFilterExchange exchange, Authentication authentication) {
         exchange.getExchange().getResponse().setStatusCode(HttpStatus.OK);
             return Mono.just(authentication.getPrincipal())
-                .filter(principal -> principal instanceof User)
-                .map(principal -> ((User) principal).getUsername())
+                .filter(principal -> principal instanceof OAuth2AuthenticationToken)
+                .map(principal -> ((OAuth2AuthenticationToken) principal).getName())
                 .filter(login -> !Constants.ANONYMOUS_USER.equals(login))
                 .flatMap(auditEventService::saveAuthenticationSuccess)
                 .then();
