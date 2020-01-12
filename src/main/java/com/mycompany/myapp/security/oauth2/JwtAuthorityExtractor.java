@@ -12,6 +12,7 @@ import java.util.Collection;
 public class JwtAuthorityExtractor implements Converter<Jwt, Collection<GrantedAuthority>> {
 
     public JwtAuthorityExtractor() {
+        // Bean extracting authority.
     }
 
     @Override

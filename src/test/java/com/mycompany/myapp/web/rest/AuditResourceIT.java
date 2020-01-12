@@ -3,19 +3,20 @@ package com.mycompany.myapp.web.rest;
 import com.mycompany.myapp.JhipsterApp;
 import com.mycompany.myapp.config.ReactivePageableHandlerMethodArgumentResolver;
 import com.mycompany.myapp.config.TestSecurityConfiguration;
+import io.github.jhipster.config.JHipsterProperties;
 import com.mycompany.myapp.config.audit.AuditEventConverter;
 import com.mycompany.myapp.domain.PersistentAuditEvent;
 import com.mycompany.myapp.repository.PersistenceAuditEventRepository;
+
 import com.mycompany.myapp.service.AuditEventService;
-import com.mycompany.myapp.web.rest.errors.ExceptionTranslator;
-import io.github.jhipster.config.JHipsterProperties;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.format.datetime.standard.DateTimeFormatterRegistrar;
+import org.springframework.format.support.FormattingConversionService;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
@@ -44,8 +45,10 @@ public class AuditResourceIT {
     @Autowired
     private JHipsterProperties jhipsterProperties;
 
+
     @Autowired
-    private ExceptionTranslator exceptionTranslator;
+    @Qualifier("webFluxConversionService")
+    private FormattingConversionService formattingConversionService;
 
     private PersistentAuditEvent auditEvent;
 
@@ -57,16 +60,13 @@ public class AuditResourceIT {
         AuditEventService auditEventService =
             new AuditEventService(auditEventRepository, auditEventConverter, jhipsterProperties);
         AuditResource auditResource = new AuditResource(auditEventService);
-
         this.webTestClient = WebTestClient.bindToController(auditResource)
-            .formatters((registry -> {
+            .argumentResolvers(configurer -> configurer.addCustomResolver(new ReactivePageableHandlerMethodArgumentResolver()))
+            .formatters(registry -> {
                 DateTimeFormatterRegistrar registrar = new DateTimeFormatterRegistrar();
                 registrar.setUseIsoFormat(true);
                 registrar.registerFormatters(registry);
-            }))
-            .argumentResolvers(configurer -> configurer.addCustomResolver(new ReactivePageableHandlerMethodArgumentResolver()))
-            .controllerAdvice(exceptionTranslator)
-            .configureClient()
+            })
             .build();
     }
 
@@ -80,7 +80,7 @@ public class AuditResourceIT {
     }
 
     @Test
-    public void getAllAudits() {
+    public void getAllAudits() throws Exception {
         // Initialize the database
         auditEventRepository.save(auditEvent).block();
 
@@ -88,29 +88,25 @@ public class AuditResourceIT {
         webTestClient.get().uri("/management/audits")
             .exchange()
             .expectStatus().isOk()
-            .expectHeader().contentType(MediaType.APPLICATION_JSON_VALUE)
-            .expectBody()
-            .jsonPath("$.[*].principal").value(hasItem(SAMPLE_PRINCIPAL));
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
+            .expectBody().jsonPath("$.[*].principal").value(hasItem(SAMPLE_PRINCIPAL));
     }
 
     @Test
-    @Disabled
-    public void getAudit() {
+    public void getAudit() throws Exception {
         // Initialize the database
         auditEventRepository.save(auditEvent).block();
 
-        // todo: figure out why id is not retrievable in AuditResource::get
         // Get the audit
         webTestClient.get().uri("/management/audits/{id}", auditEvent.getId())
             .exchange()
             .expectStatus().isOk()
-            .expectHeader().contentType(MediaType.APPLICATION_JSON_VALUE)
-            .expectBody()
-            .jsonPath("$.principal").value(hasItem(SAMPLE_PRINCIPAL));
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
+            .expectBody().jsonPath("$.principal").isEqualTo(SAMPLE_PRINCIPAL);
     }
 
     @Test
-    public void getAuditsByDate() {
+    public void getAuditsByDate() throws Exception {
         // Initialize the database
         auditEventRepository.save(auditEvent).block();
 
@@ -119,33 +115,32 @@ public class AuditResourceIT {
         String toDate = SAMPLE_TIMESTAMP.plusSeconds(SECONDS_PER_DAY).toString().substring(0, 10);
 
         // Get the audit
-        webTestClient.get().uri("/management/audits?fromDate=" + fromDate + "&toDate=" + toDate)
+        webTestClient.get().uri("/management/audits?fromDate="+fromDate+"&toDate="+toDate)
             .exchange()
             .expectStatus().isOk()
-            .expectHeader().contentType(MediaType.APPLICATION_JSON_VALUE)
-            .expectBody()
-            .jsonPath("$.[*].principal").value(hasItem(SAMPLE_PRINCIPAL));
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
+            .expectBody().jsonPath("$.[*].principal").value(hasItem(SAMPLE_PRINCIPAL));
     }
 
     @Test
-    public void getNonExistingAuditsByDate() {
+    public void getNonExistingAuditsByDate() throws Exception {
         // Initialize the database
         auditEventRepository.save(auditEvent).block();
 
         // Generate dates for selecting audits by date, making sure the period will not contain the sample audit
-        String fromDate = SAMPLE_TIMESTAMP.minusSeconds(2 * SECONDS_PER_DAY).toString().substring(0, 10);
+        String fromDate  = SAMPLE_TIMESTAMP.minusSeconds(2*SECONDS_PER_DAY).toString().substring(0, 10);
         String toDate = SAMPLE_TIMESTAMP.minusSeconds(SECONDS_PER_DAY).toString().substring(0, 10);
 
         // Query audits but expect no results
-        webTestClient.get().uri("/management/audits?fromDate=" + fromDate + "&toDate=" + toDate)
+        webTestClient.get().uri("/management/audits?fromDate="+fromDate+"&toDate="+toDate)
             .exchange()
             .expectStatus().isOk()
-            .expectHeader().contentType(MediaType.APPLICATION_JSON_VALUE)
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
             .expectHeader().valueEquals("X-Total-Count", "0");
     }
 
     @Test
-    public void getNonExistingAudit() {
+    public void getNonExistingAudit() throws Exception {
         // Get the audit
         webTestClient.get().uri("/management/audits/{id}", Long.MAX_VALUE)
             .exchange()
