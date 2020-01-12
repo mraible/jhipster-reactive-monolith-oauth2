@@ -1,9 +1,7 @@
 package com.mycompany.myapp.web.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mycompany.myapp.JhipsterApp;
 import com.mycompany.myapp.config.ReactivePageableHandlerMethodArgumentResolver;
-import com.mycompany.myapp.config.ReactiveSortHandlerMethodArgumentResolver;
 import com.mycompany.myapp.config.TestSecurityConfiguration;
 import com.mycompany.myapp.config.audit.AuditEventConverter;
 import com.mycompany.myapp.domain.PersistentAuditEvent;
@@ -19,11 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.format.datetime.standard.DateTimeFormatterRegistrar;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.CodecConfigurer;
-import org.springframework.http.codec.json.Jackson2JsonDecoder;
-import org.springframework.http.codec.json.Jackson2JsonEncoder;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.util.MimeType;
 
 import java.time.Instant;
 
@@ -99,7 +93,8 @@ public class AuditResourceIT {
             .jsonPath("$.[*].principal").value(hasItem(SAMPLE_PRINCIPAL));
     }
 
-    @Test @Disabled
+    @Test
+    @Disabled
     public void getAudit() {
         // Initialize the database
         auditEventRepository.save(auditEvent).block();
