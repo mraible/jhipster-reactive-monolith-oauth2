@@ -1,6 +1,5 @@
 package com.mycompany.myapp.web.rest;
 
-import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -8,6 +7,7 @@ import org.springframework.security.oauth2.client.registration.ReactiveClientReg
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.WebSession;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
@@ -17,7 +17,6 @@ import java.util.Map;
  * REST controller for managing global OIDC logout.
  */
 @RestController
-@Lazy
 public class LogoutResource {
     private Mono<ClientRegistration> registration;
 
@@ -32,13 +31,14 @@ public class LogoutResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and a body with a global logout URL and ID token.
      */
     @PostMapping("/api/logout")
-    public Mono<Map<String, String>> logout(@AuthenticationPrincipal(expression = "idToken") OidcIdToken idToken) {
+    public Mono<Map<String, String>> logout(@AuthenticationPrincipal(expression = "idToken") OidcIdToken idToken, WebSession session) {
         return this.registration.map(oidc ->
             oidc.getProviderDetails().getConfigurationMetadata().get("end_session_endpoint").toString())
             .map(logoutUrl -> {
                 Map<String, String> logoutDetails = new HashMap<>();
                 logoutDetails.put("logoutUrl", logoutUrl);
                 logoutDetails.put("idToken", idToken.getTokenValue());
+                session.invalidate().subscribe();
                 return logoutDetails;
             });
     }
