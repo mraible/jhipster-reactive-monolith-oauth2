@@ -12,17 +12,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.userinfo.ReactiveOAuth2UserService;
@@ -35,7 +30,6 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import org.springframework.security.web.server.header.ReferrerPolicyServerHttpHeadersWriter;
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
@@ -56,11 +50,12 @@ public class SecurityConfiguration {
     @Value("${spring.security.oauth2.client.provider.oidc.issuer-uri}")
     private String issuerUri;
 
-    private final JHipsterProperties jHipsterProperties;
     private final AuditEventService auditEventService;
+    private final JHipsterProperties jHipsterProperties;
     private final SecurityProblemSupport problemSupport;
 
-    public SecurityConfiguration(AuditEventService auditEventService, JHipsterProperties jHipsterProperties, SecurityProblemSupport problemSupport) {
+    public SecurityConfiguration(AuditEventService auditEventService, JHipsterProperties jHipsterProperties,
+                                 SecurityProblemSupport problemSupport) {
         this.auditEventService = auditEventService;
         this.jHipsterProperties = jHipsterProperties;
         this.problemSupport = problemSupport;
@@ -103,8 +98,6 @@ public class SecurityConfiguration {
                 .pathMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             .and()
                 .oauth2Login()
-                //.authenticationSuccessHandler(this::onAuthenticationSuccess)
-                //.authenticationFailureHandler(this::onAuthenticationError)
             .and()
                 .oauth2ResourceServer()
                 .jwt()
@@ -162,23 +155,4 @@ public class SecurityConfiguration {
         return jwtDecoder;
     }
 
-    private Mono<Void> onAuthenticationError(WebFilterExchange exchange, AuthenticationException e) {
-        exchange.getExchange().getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getExchange()
-                .getFormData()
-                .map(data -> data.getFirst("username"))
-                .filter(login -> !Constants.ANONYMOUS_USER.equals(login))
-                .flatMap(login -> auditEventService.saveAuthenticationError(login, e))
-                .then();
-    }
-
-    private Mono<Void> onAuthenticationSuccess(WebFilterExchange exchange, Authentication authentication) {
-        exchange.getExchange().getResponse().setStatusCode(HttpStatus.OK);
-            return Mono.just(authentication.getPrincipal())
-                .filter(principal -> principal instanceof OAuth2AuthenticationToken)
-                .map(principal -> ((OAuth2AuthenticationToken) principal).getName())
-                .filter(login -> !Constants.ANONYMOUS_USER.equals(login))
-                .flatMap(auditEventService::saveAuthenticationSuccess)
-                .then();
-    }
 }
