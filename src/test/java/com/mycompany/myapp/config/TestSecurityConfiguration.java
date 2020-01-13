@@ -6,12 +6,13 @@ import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,8 +31,8 @@ public class TestSecurityConfiguration {
     }
 
     @Bean
-    ClientRegistrationRepository clientRegistrationRepository() {
-        return new InMemoryClientRegistrationRepository(clientRegistration);
+    ReactiveClientRegistrationRepository clientRegistrationRepository() {
+        return new InMemoryReactiveClientRegistrationRepository(clientRegistration);
     }
 
     private ClientRegistration.Builder clientRegistration() {
@@ -55,8 +56,8 @@ public class TestSecurityConfiguration {
     }
 
     @Bean
-    JwtDecoder jwtDecoder() {
-        return mock(JwtDecoder.class);
+    ReactiveJwtDecoder jwtDecoder() {
+        return mock(ReactiveJwtDecoder.class);
     }
 
     @Bean
