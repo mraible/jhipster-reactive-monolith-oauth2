@@ -32,6 +32,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.WebFilterExchange;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import org.springframework.security.web.server.header.ReferrerPolicyServerHttpHeadersWriter;
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
@@ -158,8 +160,11 @@ public class SecurityConfiguration {
         return jwtDecoder;
     }
 
+    private ServerAuthenticationSuccessHandler redirectServerAuthenticationSuccessHandler = new RedirectServerAuthenticationSuccessHandler();
+
     private Mono<Void> onAuthenticationSuccess(WebFilterExchange exchange, Authentication authentication) {
-        return Mono.just(authentication.getPrincipal())
+        return redirectServerAuthenticationSuccessHandler.onAuthenticationSuccess(exchange, authentication)
+            .thenReturn(authentication.getPrincipal())
             .filter(principal -> principal instanceof OidcUser)
             .map(principal -> ((OidcUser) principal).getPreferredUsername())
             .filter(login -> !Constants.ANONYMOUS_USER.equals(login))
