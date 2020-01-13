@@ -32,14 +32,14 @@ public class LogoutResource {
      */
     @PostMapping("/api/logout")
     public Mono<Map<String, String>> logout(@AuthenticationPrincipal(expression = "idToken") OidcIdToken idToken, WebSession session) {
-        return this.registration.map(oidc ->
-            oidc.getProviderDetails().getConfigurationMetadata().get("end_session_endpoint").toString())
-            .map(logoutUrl -> {
-                Map<String, String> logoutDetails = new HashMap<>();
-                logoutDetails.put("logoutUrl", logoutUrl);
-                logoutDetails.put("idToken", idToken.getTokenValue());
-                session.invalidate().subscribe();
-                return logoutDetails;
-            });
+        return session.invalidate().then(
+            this.registration.map(oidc -> oidc.getProviderDetails().getConfigurationMetadata().get("end_session_endpoint").toString())
+                .map(logoutUrl -> {
+                    Map<String, String> logoutDetails = new HashMap<>();
+                    logoutDetails.put("logoutUrl", logoutUrl);
+                    logoutDetails.put("idToken", idToken.getTokenValue());
+                    return logoutDetails;
+                })
+        );
     }
 }
