@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
@@ -30,6 +31,7 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import org.springframework.security.web.server.header.ReferrerPolicyServerHttpHeadersWriter;
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
@@ -98,6 +100,7 @@ public class SecurityConfiguration {
                 .pathMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             .and()
                 .oauth2Login()
+                .authenticationSuccessHandler(this::onAuthenticationSuccess)
             .and()
                 .oauth2ResourceServer()
                 .jwt()
@@ -155,4 +158,12 @@ public class SecurityConfiguration {
         return jwtDecoder;
     }
 
+    private Mono<Void> onAuthenticationSuccess(WebFilterExchange exchange, Authentication authentication) {
+        return Mono.just(authentication.getPrincipal())
+            .filter(principal -> principal instanceof OidcUser)
+            .map(principal -> ((OidcUser) principal).getPreferredUsername())
+            .filter(login -> !Constants.ANONYMOUS_USER.equals(login))
+            .flatMap(auditEventService::saveAuthenticationSuccess)
+            .then();
+    }
 }
